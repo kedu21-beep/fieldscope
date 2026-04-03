@@ -1,7 +1,0 @@
-// ═══════════════════════════════════════
-//  RENDER + UI
-// ═══════════════════════════════════════
-function renderList(expanding) { /* your full renderList */ }
-function renderSaved() { /* your saved render */ }
-function showLoading() { /* loading UI */ }
-// ... all other render helpers
