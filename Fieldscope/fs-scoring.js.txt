@@ -1,6 +1,0 @@
-// ═══════════════════════════════════════
-//  SCORING
-// ═══════════════════════════════════════
-const COMMON_SP = new Set([ /* your full common species list */ ]);
-function p90(values) { /* your p90 function */ }
-function processAndScore(obs, notable, maxKm, backDays) { /* your full scoring function */ }
