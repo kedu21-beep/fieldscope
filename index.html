@@ -1,63 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="FieldScope">
-<meta name="theme-color" content="#0a140f">
-<title>FieldScope</title>
-<link href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
-<style>
-/* Paste ALL your CSS from the <style> block in fieldscope-app_1.html here */
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,400;9..144,700&display=swap');
-:root{ --bg:#0a140f; --card:#13201a; --card2:#1a2a22; --border:rgba(92,184,92,.18); --border2:rgba(92,184,92,.35); --text:#e8f5e8; --muted:#7a9c7a; --faint:#2a3a2f; --accent:#5cb85c; --highlight:#a3e4a3; --lime:#a3e4a3; --green:#5cb85c; --amber:#f4b942; --red:#e06c6c; --blue:#4a9eff; --safe-t:env(safe-area-inset-top,0px); --safe-b:env(safe-area-inset-bottom,0px); --card-radius:15px; }
-/* ... (copy the entire style block from your previous file) ... */
-.activity-selector button{ padding:5px 14px; border-radius:9999px; font-size:11px; font-weight:600; border:none; background:transparent; color:var(--muted); transition:all .2s; display:flex; align-items:center; gap:4px; }
-.activity-selector button.on{ background:var(--accent); color:#13201a; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="FieldScope">
+  <meta name="theme-color" content="#0a140f">
+  <title>FieldScope</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="style.css">   <!-- We'll add this later if needed -->
 </head>
 <body>
 
-<!-- HEADER with new Activity Selector -->
-<div class="hdr">
-  <div class="logo">
-    <i class="ti ti-binoculars" style="font-size:24px;color:var(--accent)"></i>
-    <div class="logo-text">FieldScope</div>
-  </div>
-  <div class="activity-selector" style="display:flex;gap:4px;background:rgba(92,184,92,.1);border-radius:9999px;padding:3px;border:1px solid var(--border);margin-left:12px;">
-    <button onclick="setActivity('birding')" id="act-birding" class="act-btn on"><i class="ti ti-bird"></i> Birding</button>
-    <button onclick="setActivity('hiking')" id="act-hiking" class="act-btn"><i class="ti ti-hiking"></i> Hiking</button>
-    <button onclick="setActivity('fishing')" id="act-fishing" class="act-btn"><i class="ti ti-fishing"></i> Fishing</button>
-  </div>
-  <div class="hdr-right">
-    <div class="gps-badge" id="gpsBadge"><div class="gdot" id="gdot"></div><span id="gTxt">GPS</span></div>
-  </div>
-</div>
+  <!-- Paste your full HTML body here from the previous working version (header, timer, scan button, tabs, listView, mapView, savedView, toast, etc.) -->
 
-<!-- TIMER BAR, LOG PANEL, SCAN, FORMULA, TABS, LIST, MAP, SAVED, DRIVE BANNER, TOAST -->
-<!-- (copy the exact HTML from your previous file starting from <div class="timer-bar"> all the way to the toast) -->
+  <!-- Important: Script tags at the very bottom -->
+  <script src="fs-config.js"></script>
+  <script src="fs-scoring.js"></script>
+  <script src="fs-scan.js"></script>
+  <script src="fs-render.js"></script>
+  <script src="fs-map.js"></script>
+  <script src="fs-storage.js"></script>
 
-<div class="safe-pad"></div>
-<div class="toast" id="toast"></div>
-
-<script src="fs-config.js"></script>
-<script src="fs-scoring.js"></script>
-<script src="fs-scan.js"></script>
-<script src="fs-render.js"></script>
-<script src="fs-map.js"></script>
-<script src="fs-storage.js"></script>
-<script>
-// All functions are now available globally from the separate files
-// The DOMContentLoaded and wiring code stays here (minimal)
-document.addEventListener('DOMContentLoaded', () => {
-  // Existing wiring from your file (scan button, listView click, etc.)
-  document.getElementById('scanBtn').addEventListener('click', scan);
-  // ... (copy the rest of your DOMContentLoaded from previous file)
-});
-</script>
+  <script>
+    // Minimal wiring to start everything
+    document.addEventListener('DOMContentLoaded', () => {
+      initGPS();
+      // Add any other startup code you had (loadSaved, loadVisited, etc.)
+    });
+  </script>
 </body>
 </html>
