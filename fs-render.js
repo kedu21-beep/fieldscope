@@ -2,17 +2,20 @@
 //  RENDER + UI
 // ═══════════════════════════════════════
 
-function showLoading(){
+// ── Loading screen — adapts label per activity ──
+function showLoading(activity){
+  const act=activity||currentActivity||'birding';
+  const isBird=act==='birding';
   document.getElementById('listView').innerHTML=''
     +'<div class="state"><div class="prog-box">'
-    +'<div class="prog-lbl">Scanning eBird · All ranges parallel</div>'
+    +'<div class="prog-lbl">'+(isBird?'Scanning eBird · All ranges parallel':'Scanning '+act+' spots…')+'</div>'
     +'<div class="prog-track"><div class="prog-fill" id="progFill" style="width:5%"></div></div>'
     +'<div>'
-    +'<div class="pstep"><i class="ti ti-radar ps-i"></i><span class="ps-t act" id="s1">30km · 30 days</span></div>'
-    +'<div class="pstep"><i class="ti ti-map ps-i"></i><span class="ps-t act" id="s2">100km · 14 days</span></div>'
-    +'<div class="pstep"><i class="ti ti-world ps-i"></i><span class="ps-t act" id="s3">200km · 14 days</span></div>'
+    +'<div class="pstep"><i class="ti ti-radar ps-i"></i><span class="ps-t act" id="s1">30km</span></div>'
+    +'<div class="pstep"><i class="ti ti-map ps-i"></i><span class="ps-t act" id="s2">100km</span></div>'
+    +'<div class="pstep"><i class="ti ti-world ps-i"></i><span class="ps-t act" id="s3">200km</span></div>'
     +'</div></div>'
-    +'<div style="font-size:10px;color:var(--faint);margin-top:6px">All 3 ranges fetching simultaneously</div></div>';
+    +'<div style="font-size:10px;color:var(--faint);margin-top:6px">'+(isBird?'All 3 ranges fetching simultaneously':'Fetching from OpenStreetMap')+'</div></div>';
 }
 
 function setBar(p){const e=document.getElementById('progFill');if(e)e.style.width=p+'%';}
@@ -53,7 +56,17 @@ function showTab(tab){
   if(isSavedTab)renderSaved();
 }
 
+// ── MASTER renderList — routes to the right renderer ──
 function renderList(expanding){
+  if(currentActivity==='fishing') return renderFishingList(expanding);
+  if(currentActivity==='hiking')  return renderHikingList(expanding);
+  return renderBirdingList(expanding);
+}
+
+// ════════════════════════════════════════════
+//  BIRDING LIST (unchanged)
+// ════════════════════════════════════════════
+function renderBirdingList(expanding){
   let filtered=spots;
   if(driveFilter>0)filtered=spots.filter(s=>driveMin(s.dist)<=driveFilter);
   if(hideVisited)filtered=filtered.filter(s=>!isVisited(s.id));
@@ -97,16 +110,14 @@ function renderList(expanding){
     +'<i class="ti ti-navigation"></i> Go Now</button>'
     +'<button class="act map" onclick="event.stopPropagation();flyTo('+hero.lat+','+hero.lng+')">'
     +'<i class="ti ti-map"></i> Map</button>'
-    +'<button class="save-btn'+(isSaved(hero.id)?' saved':'')+'" data-id="'+hero.id+'" title="'+(isSaved(hero.id)?'Unsave':'Save')+'">'
+    +'<button class="save-btn'+(isSaved(hero.id)?' saved':'')+'" data-id="'+hero.id+'">'
     +'<i class="ti ti-star'+(isSaved(hero.id)?'-filled':'')+'" style="font-size:18px"></i></button>'
     +'<button class="act" onclick="event.stopPropagation();window.open(\''+heroEbirdUrl+'\',\'_blank\')" '
     +'style="background:rgba(74,158,255,.07);border:1px solid rgba(74,158,255,.18);color:var(--muted);flex:0;padding:8px 10px">'
     +'<i class="ti ti-brand-databricks"></i></button>'
     +'</div></div>';
 
-  const expandBanner=expanding
-    ?'<div class="expanding"><i class="ti ti-loader spinning"></i> Expanding scan…</div>'
-    :'';
+  const expandBanner=expanding?'<div class="expanding"><i class="ti ti-loader spinning"></i> Expanding scan…</div>':'';
 
   const radiusBar='<div class="df-bar">'
     +'<button class="rf-btn'+(radiusFilter===0?' on':'')+'" data-rf="0">All</button>'
@@ -121,44 +132,27 @@ function renderList(expanding){
     +'<button class="df-btn'+(driveFilter===30?' on':'')+'" data-df="30">≤ 30 min</button>'
     +'<button class="df-btn'+(driveFilter===60?' on':'')+'" data-df="60">≤ 1 hour</button>'
     +'<button class="df-btn'+(driveFilter===120?' on':'')+'" data-df="120">≤ 2 hours</button>'
-    +(visitedCount>0
-      ?'<button class="df-btn hv-btn'+(hideVisited?' on':'')+'">'
-        +(hideVisited?'Show visited ('+visitedCount+')':'Hide visited ('+visitedCount+')')
-        +'</button>'
-      :'')
+    +(visitedCount>0?'<button class="df-btn hv-btn'+(hideVisited?' on':'')+'">'+(hideVisited?'Show visited ('+visitedCount+')':'Hide visited ('+visitedCount+')')+'</button>':'')
     +'</div>';
 
   const cards=filtered.map((s,i)=>{
     const isR=s.rareCnt>0,isTop=i===0;
-    const rarePills=s.rare.slice(0,3).map(n=>'<span class="pill r"><i class="ti ti-zap"></i> '+n+'</span>').join('')
-      +(s.rare.length>3?'<span class="pill more">+'+(s.rare.length-3)+'</span>':'');
-    const spPills=s.topSp.slice(0,4).map(n=>'<span class="pill">'+n+'</span>').join('')
-      +(s.spCnt>4?'<span class="pill more">+'+(s.spCnt-4)+'</span>':'');
-    const recTag=s.sRec>0
-      ?'<div class="mtag" style="color:var(--amber);border-color:rgba(244,185,66,.25);background:rgba(244,185,66,.07)">'
-        +'<i class="ti ti-clock"></i> '+(s.recent24>0?s.recent24+' list'+(s.recent24>1?'s':'')+' today':s.recent48+' list'+(s.recent48>1?'s':'')+' yest.')+'</div>'
-      :'';
-    const momTag=s.momentumLabel
-      ?'<div class="mtag" style="color:'+(s.sMom>0?'var(--accent)':'var(--blue)')
-        +';border-color:'+(s.sMom>0?'rgba(92,184,92,.25)':'rgba(74,158,255,.25)')
-        +';background:'+(s.sMom>0?'rgba(92,184,92,.07)':'rgba(74,158,255,.07)')+'">'+s.momentumLabel+'</div>'
-      :'';
+    const rarePills=s.rare.slice(0,3).map(n=>'<span class="pill r"><i class="ti ti-zap"></i> '+n+'</span>').join('')+(s.rare.length>3?'<span class="pill more">+'+(s.rare.length-3)+'</span>':'');
+    const spPills=s.topSp.slice(0,4).map(n=>'<span class="pill">'+n+'</span>').join('')+(s.spCnt>4?'<span class="pill more">+'+(s.spCnt-4)+'</span>':'');
+    const recTag=s.sRec>0?'<div class="mtag" style="color:var(--amber);border-color:rgba(244,185,66,.25);background:rgba(244,185,66,.07)"><i class="ti ti-clock"></i> '+(s.recent24>0?s.recent24+' list'+(s.recent24>1?'s':'')+' today':s.recent48+' list'+(s.recent48>1?'s':'')+' yest.')+'</div>':'';
+    const momTag=s.momentumLabel?'<div class="mtag" style="color:'+(s.sMom>0?'var(--accent)':'var(--blue)')+';border-color:'+(s.sMom>0?'rgba(92,184,92,.25)':'rgba(74,158,255,.25)')+';background:'+(s.sMom>0?'rgba(92,184,92,.07)':'rgba(74,158,255,.07)')+'">'+s.momentumLabel+'</div>':'';
     const ebirdUrl='https://ebird.org/hotspot/'+s.id;
     const visited=isVisited(s.id);
     return '<div class="spot'+(isR?' rare':'')+(visited?' visited-spot':'')+'" style="animation-delay:'+Math.min(i*28,380)+'ms">'
-      +'<div class="spot-top"><div>'
-      +'<div class="spot-rank'+(isTop?' gold':'')+'">'+(isTop?'★ #1':'#'+(i+1))+'</div>'
-      +'<div class="spot-name">'+s.name+'</div></div>'
+      +'<div class="spot-top"><div><div class="spot-rank'+(isTop?' gold':'')+'">'+(isTop?'★ #1':'#'+(i+1))+'</div><div class="spot-name">'+s.name+'</div></div>'
       +'<div class="score-block'+(isR?' rare':'')+'"><div class="n">'+s.score+'</div><div class="l">Score</div></div></div>'
-      +'<div class="meta">'
-      +'<div class="mtag hi"><i class="ti ti-location"></i> '+s.dist+'km</div>'
-      +'<div class="mtag hi"><i class="ti ti-car"></i> '+driveTxt(s.dist)+'</div>'
+      +'<div class="meta"><div class="mtag hi"><i class="ti ti-location"></i> '+s.dist+'km</div><div class="mtag hi"><i class="ti ti-car"></i> '+driveTxt(s.dist)+'</div>'
       +'<div class="mtag'+(s.spCnt>20?' hi':'')+'"><i class="ti ti-feather"></i> '+s.spCnt+' sp.</div>'
       +(isR?'<div class="mtag rare-t"><i class="ti ti-zap"></i> '+s.rareCnt+' rare</div>':'')+recTag+momTag+'</div>'
       +'<div class="bars">'
       +'<div class="bar"><span class="bar-l">Prox</span><div class="bar-t"><div class="bar-f p" style="width:'+(s.sP/40*100)+'%"></div></div><span class="bar-v">'+s.sP+'/40</span></div>'
-      +'<div class="bar"><span class="bar-l">Species</span><div class="bar-t"><div class="bar-f q" style="width:'+(s.sQ/35*100)+'%"></div></div><span class="bar-v" title="'+s.effSpCnt+' eff / '+s.spCnt+' raw (ceiling '+s.spNorm+')">'+s.sQ+'/35</span></div>'
-      +'<div class="bar"><span class="bar-l">Rarity</span><div class="bar-t"><div class="bar-f r" style="width:'+(s.sR/25*100)+'%"></div></div><span class="bar-v" title="'+s.rareCnt+' rare / '+s.totalChecklists+' lists · conc '+s.concentration+'%">'+s.sR+'/25</span></div>'
+      +'<div class="bar"><span class="bar-l">Species</span><div class="bar-t"><div class="bar-f q" style="width:'+(s.sQ/35*100)+'%"></div></div><span class="bar-v">'+s.sQ+'/35</span></div>'
+      +'<div class="bar"><span class="bar-l">Rarity</span><div class="bar-t"><div class="bar-f r" style="width:'+(s.sR/25*100)+'%"></div></div><span class="bar-v">'+s.sR+'/25</span></div>'
       +(s.sRec>0?'<div class="bar"><span class="bar-l">Recent</span><div class="bar-t"><div class="bar-f" style="width:100%;background:var(--amber)"></div></div><span class="bar-v">+'+s.sRec+'</span></div>':'')
       +(s.sMom!==0?'<div class="bar"><span class="bar-l">Trend</span><div class="bar-t"><div class="bar-f" style="width:'+Math.abs(s.sMom)/5*100+'%;background:'+(s.sMom>0?'var(--accent)':'var(--blue)')+'"></div></div><span class="bar-v">'+(s.sMom>0?'+':'')+s.sMom+'</span></div>':'')
       +'</div>'
@@ -167,10 +161,8 @@ function renderList(expanding){
       +'<div class="actions">'
       +'<button class="act go" onclick="navTo('+s.lat+','+s.lng+')"><i class="ti ti-navigation"></i> Directions</button>'
       +'<button class="act map" onclick="flyTo('+s.lat+','+s.lng+')"><i class="ti ti-map"></i> Map</button>'
-      +'<button class="visit-btn'+(visited?' visited':'')+'" data-id="'+s.id+'" title="'+(visited?'Unmark visited':'Mark visited')+'">'
-      +'<i class="'+(visited?'ti ti-circle-check-filled':'ti ti-circle-check')+'" style="font-size:18px"></i></button>'
-      +'<button class="save-btn'+(isSaved(s.id)?' saved':'')+'" data-id="'+s.id+'" title="'+(isSaved(s.id)?'Unsave':'Save')+'">'
-      +'<i class="ti ti-star'+(isSaved(s.id)?'-filled':'')+'" style="font-size:18px"></i></button>'
+      +'<button class="visit-btn'+(visited?' visited':'')+'" data-id="'+s.id+'"><i class="'+(visited?'ti ti-circle-check-filled':'ti ti-circle-check')+'" style="font-size:18px"></i></button>'
+      +'<button class="save-btn'+(isSaved(s.id)?' saved':'')+'" data-id="'+s.id+'"><i class="ti ti-star'+(isSaved(s.id)?'-filled':'')+'" style="font-size:18px"></i></button>'
       +'<button class="act" onclick="window.open(\''+ebirdUrl+'\',\'_blank\')" style="background:rgba(74,158,255,.07);border:1px solid rgba(74,158,255,.18);color:var(--muted);flex:0;padding:8px 10px"><i class="ti ti-brand-databricks"></i></button>'
       +'</div></div>';
   }).join('');
@@ -179,4 +171,154 @@ function renderList(expanding){
     +'<div style="display:flex;justify-content:space-between;padding:2px 0 7px">'
     +'<div style="font-size:9.5px;font-weight:700;color:var(--faint);letter-spacing:.8px;text-transform:uppercase">'+filtered.length+' locations ranked</div>'
     +'<div style="font-size:9.5px;color:var(--faint)">last 7 days</div></div>'+cards;
+}
+
+// ════════════════════════════════════════════
+//  FISHING LIST
+// ════════════════════════════════════════════
+function renderFishingList(expanding){
+  const filtered=driveFilter>0?spots.filter(s=>s.driveMin<=driveFilter):spots;
+
+  if(!filtered.length){
+    document.getElementById('listView').innerHTML='<div class="state">'
+      +'<i class="ti ti-ripple" style="font-size:42px;color:var(--blue)"></i>'
+      +'<div class="state-title">No fishing spots found</div>'
+      +'<div class="state-sub">Try scanning or adjusting your drive filter.</div></div>';
+    return;
+  }
+
+  const expandBanner=expanding?'<div class="expanding"><i class="ti ti-loader spinning"></i> Expanding search…</div>':'';
+
+  const filterBar='<div class="df-bar">'
+    +'<button class="df-btn'+(driveFilter===0?' on':'')+'" data-df="0">All drives</button>'
+    +'<button class="df-btn'+(driveFilter===30?' on':'')+'" data-df="30">≤ 30 min</button>'
+    +'<button class="df-btn'+(driveFilter===60?' on':'')+'" data-df="60">≤ 1 hour</button>'
+    +'<button class="df-btn'+(driveFilter===120?' on':'')+'" data-df="120">≤ 2 hours</button>'
+    +'</div>';
+
+  const cards=filtered.map((s,i)=>{
+    const isTop=i===0;
+    const visited=isVisited(s.id);
+
+    // Water type label
+    const waterLabel={river:'River',stream:'Stream',lake:'Lake',reservoir:'Reservoir',
+      pond:'Pond',basin:'Basin',oxbow:'Oxbow',canal:'Canal',water:'Water'}[s.waterType]||'Water';
+
+    // Fish species pills — primary bold, secondary faint
+    const fishPrimary=(s.fishSpecies||[]).slice(0,3)
+      .map(function(f){return '<span class="pill" style="color:var(--blue);border-color:rgba(74,158,255,.25);background:rgba(74,158,255,.07)"><i class="ti ti-fish"></i> '+f+'</span>';})
+      .join('');
+    const fishSecondary=(s.fishSecondary||[]).slice(0,2)
+      .map(function(f){return '<span class="pill">'+f+'</span>';})
+      .join('');
+    const fishSourceTag=s.fishSource==='osm'
+      ?'<span class="pill" style="color:var(--accent);border-color:rgba(92,184,92,.2);font-size:9px">OSM verified</span>'
+      :'<span class="pill more" style="font-size:9px">inferred</span>';
+
+    // Access tag
+    const accessTag=s.fishing==='yes'
+      ?'<div class="mtag" style="color:var(--accent);border-color:rgba(92,184,92,.25);background:rgba(92,184,92,.07)"><i class="ti ti-check"></i> Fishing spot</div>'
+      :'';
+
+    return '<div class="spot'+(visited?' visited-spot':'')+'" style="animation-delay:'+Math.min(i*28,380)+'ms">'
+      +'<div class="spot-top"><div>'
+      +'<div class="spot-rank'+(isTop?' gold':'')+'">'+(isTop?'★ #1':'#'+(i+1))+'</div>'
+      +'<div class="spot-name">'+s.name+'</div></div>'
+      +'<div class="score-block"><div class="n">'+s.score+'</div><div class="l">Score</div></div></div>'
+      +'<div class="meta">'
+      +'<div class="mtag hi"><i class="ti ti-location"></i> '+s.dist+'km</div>'
+      +'<div class="mtag hi"><i class="ti ti-car"></i> '+driveTxt(s.dist)+'</div>'
+      +'<div class="mtag"><i class="ti ti-droplet"></i> '+waterLabel+'</div>'
+      +accessTag
+      +'</div>'
+      +'<div class="bars">'
+      +'<div class="bar"><span class="bar-l">Prox</span><div class="bar-t"><div class="bar-f p" style="width:'+(s.sP/40*100)+'%"></div></div><span class="bar-v">'+s.sP+'/40</span></div>'
+      +'<div class="bar"><span class="bar-l">Water</span><div class="bar-t"><div class="bar-f" style="width:'+(s.sW/30*100)+'%;background:var(--blue)"></div></div><span class="bar-v">'+s.sW+'/30</span></div>'
+      +'<div class="bar"><span class="bar-l">Access</span><div class="bar-t"><div class="bar-f q" style="width:'+(s.sA/20*100)+'%"></div></div><span class="bar-v">'+s.sA+'/20</span></div>'
+      +(s.fishBonus>0?'<div class="bar"><span class="bar-l">Fish</span><div class="bar-t"><div class="bar-f" style="width:'+(s.fishBonus/10*100)+'%;background:var(--amber)"></div></div><span class="bar-v">+'+s.fishBonus+'</span></div>':'')
+      +'</div>'
+      // Fish species section
+      +'<div style="margin-bottom:8px">'
+      +'<div style="font-size:8.5px;font-weight:700;color:var(--faint);letter-spacing:.6px;text-transform:uppercase;margin-bottom:4px">Expected species</div>'
+      +'<div class="pills">'+fishPrimary+fishSecondary+fishSourceTag+'</div>'
+      +'</div>'
+      +'<div class="actions">'
+      +'<button class="act go" onclick="navTo('+s.lat+','+s.lng+')"><i class="ti ti-navigation"></i> Directions</button>'
+      +'<button class="act map" onclick="flyTo('+s.lat+','+s.lng+')"><i class="ti ti-map"></i> Map</button>'
+      +'<button class="visit-btn'+(visited?' visited':'')+'" data-id="'+s.id+'"><i class="'+(visited?'ti ti-circle-check-filled':'ti ti-circle-check')+'" style="font-size:18px"></i></button>'
+      +'<button class="save-btn'+(isSaved(s.id)?' saved':'')+'" data-id="'+s.id+'"><i class="ti ti-star'+(isSaved(s.id)?'-filled':'')+'" style="font-size:18px"></i></button>'
+      +'</div></div>';
+  }).join('');
+
+  document.getElementById('listView').innerHTML=expandBanner+filterBar
+    +'<div style="display:flex;justify-content:space-between;padding:2px 0 7px">'
+    +'<div style="font-size:9.5px;font-weight:700;color:var(--faint);letter-spacing:.8px;text-transform:uppercase">'+filtered.length+' fishing spots</div>'
+    +'<div style="font-size:9.5px;color:var(--faint)">OpenStreetMap</div></div>'+cards;
+}
+
+// ════════════════════════════════════════════
+//  HIKING LIST
+// ════════════════════════════════════════════
+function renderHikingList(expanding){
+  const filtered=driveFilter>0?spots.filter(s=>s.driveMin<=driveFilter):spots;
+
+  if(!filtered.length){
+    document.getElementById('listView').innerHTML='<div class="state">'
+      +'<i class="ti ti-walk" style="font-size:42px;color:var(--accent)"></i>'
+      +'<div class="state-title">No trails found</div>'
+      +'<div class="state-sub">Try scanning or adjusting your drive filter.</div></div>';
+    return;
+  }
+
+  const expandBanner=expanding?'<div class="expanding"><i class="ti ti-loader spinning"></i> Expanding search…</div>':'';
+
+  const filterBar='<div class="df-bar">'
+    +'<button class="df-btn'+(driveFilter===0?' on':'')+'" data-df="0">All drives</button>'
+    +'<button class="df-btn'+(driveFilter===30?' on':'')+'" data-df="30">≤ 30 min</button>'
+    +'<button class="df-btn'+(driveFilter===60?' on':'')+'" data-df="60">≤ 1 hour</button>'
+    +'<button class="df-btn'+(driveFilter===120?' on':'')+'" data-df="120">≤ 2 hours</button>'
+    +'</div>';
+
+  // Difficulty label map
+  const diffLabel={hiking:'Easy',mountain_hiking:'Moderate',demanding_mountain_hiking:'Hard',
+    alpine_hiking:'Alpine',demanding_alpine_hiking:'Expert',difficult_alpine_hiking:'Extreme'};
+
+  const cards=filtered.map((s,i)=>{
+    const isTop=i===0;
+    const visited=isVisited(s.id);
+    const diff=diffLabel[s.difficulty]||'';
+    const diffColor=diff==='Easy'?'var(--accent)':diff==='Moderate'?'var(--amber)':'var(--red)';
+    const surface=s.surface?s.surface.charAt(0).toUpperCase()+s.surface.slice(1):'';
+    const isRelation=s.type==='relation';
+
+    return '<div class="spot'+(visited?' visited-spot':'')+'" style="animation-delay:'+Math.min(i*28,380)+'ms">'
+      +'<div class="spot-top"><div>'
+      +'<div class="spot-rank'+(isTop?' gold':'')+'">'+(isTop?'★ #1':'#'+(i+1))+'</div>'
+      +'<div class="spot-name">'+s.name+'</div></div>'
+      +'<div class="score-block"><div class="n">'+s.score+'</div><div class="l">Score</div></div></div>'
+      +'<div class="meta">'
+      +'<div class="mtag hi"><i class="ti ti-location"></i> '+s.dist+'km</div>'
+      +'<div class="mtag hi"><i class="ti ti-car"></i> '+driveTxt(s.dist)+'</div>'
+      +(s.lengthKm>0?'<div class="mtag"><i class="ti ti-route"></i> '+s.lengthKm+'km</div>':'')
+      +(diff?'<div class="mtag" style="color:'+diffColor+';border-color:'+diffColor+'44;background:'+diffColor+'11">'+diff+'</div>':'')
+      +(isRelation?'<div class="mtag" style="color:var(--amber);border-color:rgba(244,185,66,.25);background:rgba(244,185,66,.07)"><i class="ti ti-route"></i> Named route</div>':'')
+      +(surface?'<div class="mtag">'+surface+'</div>':'')
+      +'</div>'
+      +'<div class="bars">'
+      +'<div class="bar"><span class="bar-l">Prox</span><div class="bar-t"><div class="bar-f p" style="width:'+(s.sP/40*100)+'%"></div></div><span class="bar-v">'+s.sP+'/40</span></div>'
+      +'<div class="bar"><span class="bar-l">Length</span><div class="bar-t"><div class="bar-f q" style="width:'+(s.sL/30*100)+'%"></div></div><span class="bar-v">'+s.sL+'/30</span></div>'
+      +'<div class="bar"><span class="bar-l">Quality</span><div class="bar-t"><div class="bar-f" style="width:'+(s.sQ/20*100)+'%;background:var(--amber)"></div></div><span class="bar-v">'+s.sQ+'/20</span></div>'
+      +'</div>'
+      +'<div class="actions">'
+      +'<button class="act go" onclick="navTo('+s.lat+','+s.lng+')"><i class="ti ti-navigation"></i> Directions</button>'
+      +'<button class="act map" onclick="flyTo('+s.lat+','+s.lng+')"><i class="ti ti-map"></i> Map</button>'
+      +'<button class="visit-btn'+(visited?' visited':'')+'" data-id="'+s.id+'"><i class="'+(visited?'ti ti-circle-check-filled':'ti ti-circle-check')+'" style="font-size:18px"></i></button>'
+      +'<button class="save-btn'+(isSaved(s.id)?' saved':'')+'" data-id="'+s.id+'"><i class="ti ti-star'+(isSaved(s.id)?'-filled':'')+'" style="font-size:18px"></i></button>'
+      +'</div></div>';
+  }).join('');
+
+  document.getElementById('listView').innerHTML=expandBanner+filterBar
+    +'<div style="display:flex;justify-content:space-between;padding:2px 0 7px">'
+    +'<div style="font-size:9.5px;font-weight:700;color:var(--faint);letter-spacing:.8px;text-transform:uppercase">'+filtered.length+' trails</div>'
+    +'<div style="font-size:9.5px;color:var(--faint)">OpenStreetMap</div></div>'+cards;
 }

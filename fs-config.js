@@ -98,9 +98,36 @@ function setGPS(ok,txt){
 }
 
 // ── ACTIVITY ──
+const FORMULA_HTML={
+  birding:'<div class="fi"><div class="fd" style="background:var(--blue)"></div>Proximity 40</div>'
+    +'<div class="fi"><div class="fd" style="background:var(--accent)"></div>Species 35</div>'
+    +'<div class="fi"><div class="fd" style="background:var(--red)"></div>Rarity 25</div>'
+    +'<div class="fi"><div class="fd" style="background:var(--amber)"></div>Recent +5</div>',
+  fishing:'<div class="fi"><div class="fd" style="background:var(--blue)"></div>Proximity 40</div>'
+    +'<div class="fi"><div class="fd" style="background:var(--blue)"></div>Water 30</div>'
+    +'<div class="fi"><div class="fd" style="background:var(--accent)"></div>Access 20</div>'
+    +'<div class="fi"><div class="fd" style="background:var(--amber)"></div>Fish +10</div>',
+  hiking:'<div class="fi"><div class="fd" style="background:var(--blue)"></div>Proximity 40</div>'
+    +'<div class="fi"><div class="fd" style="background:var(--accent)"></div>Length 30</div>'
+    +'<div class="fi"><div class="fd" style="background:var(--amber)"></div>Quality 20</div>'
+    +'<div class="fi"><div class="fd" style="background:var(--red)"></div>Park +10</div>',
+};
+const SCAN_ICON={birding:'ti-radar',fishing:'ti-ripple',hiking:'ti-walk'};
+const SCAN_LABEL={birding:'Find Best Birding Spots',fishing:'Find Fishing Spots',hiking:'Find Hiking Trails'};
+
 function setActivity(act){
   currentActivity=act;
   document.querySelectorAll('.act-btn').forEach(b=>b.classList.toggle('on',b.id==='act-'+act));
+  // Update formula bar
+  const fb=document.getElementById('formulaBar');
+  if(fb)fb.innerHTML=FORMULA_HTML[act]||FORMULA_HTML.birding;
+  // Update scan button label + icon (only when not scanning)
+  if(!scanning){
+    const icon=document.getElementById('scanIcon');
+    if(icon)icon.className='ti '+(SCAN_ICON[act]||'ti-radar');
+    const txt=document.getElementById('scanTxt');
+    if(txt)txt.textContent=SCAN_LABEL[act]||'Find Spots Near Me';
+  }
   toast('Switched to '+act.charAt(0).toUpperCase()+act.slice(1)+' mode',1500);
   spots=[];
   renderList(false);

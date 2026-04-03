@@ -373,12 +373,12 @@ body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;disp
 <div class="scan-wrap">
   <button class="scan-btn" id="scanBtn">
     <i id="scanIcon" class="ti ti-radar" style="font-size:22px"></i>
-    <span id="scanTxt">Find Best Spots Near Me</span>
+    <span id="scanTxt">Find Best Birding Spots</span>
   </button>
 </div>
 
-<!-- SCORE FORMULA -->
-<div class="formula">
+<!-- SCORE FORMULA — updated dynamically by setActivity() -->
+<div class="formula" id="formulaBar">
   <div class="fi"><div class="fd" style="background:var(--blue)"></div>Proximity 40</div>
   <div class="fi"><div class="fd" style="background:var(--accent)"></div>Species 35</div>
   <div class="fi"><div class="fd" style="background:var(--red)"></div>Rarity 25</div>
@@ -494,12 +494,27 @@ document.addEventListener('DOMContentLoaded', function() {
     if (c && Date.now() - c.ts < 3600000 && c.spots && c.spots.length) {
       spots = c.spots;
       if (c.lat) { cachedLat = c.lat; cachedLng = c.lng; userLat = c.lat; userLng = c.lng; }
+      // Restore activity if cached
+      if (c.activity && c.activity !== currentActivity) {
+        currentActivity = c.activity;
+        document.querySelectorAll('.act-btn').forEach(function(b) {
+          b.classList.toggle('on', b.id === 'act-' + c.activity);
+        });
+        var fb = document.getElementById('formulaBar');
+        if (fb && typeof FORMULA_HTML !== 'undefined') fb.innerHTML = FORMULA_HTML[c.activity] || FORMULA_HTML.birding;
+        var icon = document.getElementById('scanIcon');
+        if (icon && typeof SCAN_ICON !== 'undefined') icon.className = 'ti ' + (SCAN_ICON[c.activity] || 'ti-radar');
+      }
       renderList(false);
       var age = Math.round((Date.now() - c.ts) / 60000);
       document.getElementById('scanTxt').textContent = 'Scan Again (' + age + 'min ago)';
-      var topRare = spots.find(function(s) { return s.rareCnt > 0; });
-      if (topRare) toast('Rare: ' + topRare.rare[0] + ' · ' + topRare.dist + 'km away', 4000);
-      else toast(spots.length + ' spots from cache · ' + age + 'min old');
+      if (currentActivity === 'birding') {
+        var topRare = spots.find(function(s) { return s.rareCnt > 0; });
+        if (topRare) toast('Rare: ' + topRare.rare[0] + ' · ' + topRare.dist + 'km away', 4000);
+        else toast(spots.length + ' spots from cache · ' + age + 'min old');
+      } else {
+        toast(spots.length + ' ' + currentActivity + ' spots from cache · ' + age + 'min old');
+      }
     }
   } catch(_) {}
 
