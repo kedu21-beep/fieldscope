@@ -1,7 +1,0 @@
-// ═══════════════════════════════════════
-//  MAP
-// ═══════════════════════════════════════
-function initMap() { /* your map init */ }
-function updateMap() { /* your updateMap with user pin */ }
-function flyTo(lat, lng) { /* your flyTo */ }
-function navTo(lat, lng) { /* your navTo */ }
