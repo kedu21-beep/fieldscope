@@ -1,7 +1,0 @@
-// ═══════════════════════════════════════
-//  STORAGE + OFFLINE + SAVED + VISITED
-// ═══════════════════════════════════════
-function cache() { /* your cache */ }
-function loadSaved() { /* saved logic */ }
-function loadVisited() { /* visited logic */ }
-// ... all save/visited/offline functions
