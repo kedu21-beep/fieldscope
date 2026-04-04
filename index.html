@@ -10,6 +10,7 @@
 <title>FieldScope</title>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,400;9..144,700&display=swap');
@@ -319,7 +320,9 @@ body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;disp
   z-index:999;white-space:nowrap;pointer-events:none;
   box-shadow:0 4px 20px rgba(0,0,0,.5);backdrop-filter:blur(8px)
 }
-.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+/* ── MAP RING LABEL ── */
+.ring-lbl{background:rgba(10,20,15,.85)!important;border:none!important;color:var(--muted)!important;font-size:9px!important;font-family:'Outfit',sans-serif!important;padding:2px 6px!important;border-radius:6px!important;box-shadow:none!important;}
+.leaflet-tooltip.ring-lbl{font-weight:600;}
 </style>
 </head>
 <body>
@@ -396,6 +399,7 @@ body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;disp
   <div class="tab on" id="tabList"><i class="ti ti-list" style="margin-right:4px"></i>Ranked List</div>
   <div class="tab"    id="tabMap"><i class="ti ti-map" style="margin-right:4px"></i>Map</div>
   <div class="tab"    id="tabSaved"><i class="ti ti-star" style="margin-right:4px"></i>Saved</div>
+  <div class="tab"    id="tabPulse"><i class="ti ti-chart-bar" style="margin-right:4px"></i>Pulse</div>
 </div>
 
 <!-- LIST -->
@@ -410,22 +414,28 @@ body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;disp
 <!-- MAP -->
 <div id="mapView">
   <div id="mapEl"></div>
+  <button onclick="exportGPX()" style="position:absolute;bottom:calc(20px + var(--safe-b));right:12px;z-index:1000;background:rgba(19,32,26,.95);border:1px solid var(--border2);color:var(--accent);padding:8px 13px;border-radius:20px;font-size:11px;font-weight:700;display:flex;align-items:center;gap:5px;cursor:pointer;font-family:'Outfit',sans-serif;box-shadow:0 2px 12px rgba(0,0,0,.5)">
+    <i class="ti ti-download"></i> Export GPX
+  </button>
 </div>
 
 <!-- SAVED -->
 <div class="list" id="savedView" style="display:none"></div>
 
+<!-- MIGRATION PULSE -->
+<div class="list" id="pulseView" style="display:none"></div>
+
 <div class="safe-pad"></div>
 <div class="toast" id="toast"></div>
 
 <!-- MODULAR SCRIPTS — order matters: config first, storage last -->
-<!-- v=5 — wildlife, kayaking, plan trip improvements, offline, cancel button -->
-<script src="fs-config.js?v=5"></script>
-<script src="fs-scoring.js?v=5"></script>
-<script src="fs-scan.js?v=5"></script>
-<script src="fs-render.js?v=5"></script>
-<script src="fs-map.js?v=5"></script>
-<script src="fs-storage.js?v=5"></script>
+<!-- v=7 — migration pulse tab, Chart.js, activity-aware map -->
+<script src="fs-config.js?v=7"></script>
+<script src="fs-scoring.js?v=7"></script>
+<script src="fs-scan.js?v=7"></script>
+<script src="fs-render.js?v=7"></script>
+<script src="fs-map.js?v=7"></script>
+<script src="fs-storage.js?v=7"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -451,6 +461,7 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('tabList').addEventListener('click',  function(){ showTab('list');  });
   document.getElementById('tabMap').addEventListener('click',   function(){ showTab('map');   });
   document.getElementById('tabSaved').addEventListener('click', function(){ showTab('saved'); });
+  document.getElementById('tabPulse').addEventListener('click', function(){ showTab('pulse'); });
 
   // ── Log panel ──
   document.getElementById('logBtn').addEventListener('click', toggleLog);

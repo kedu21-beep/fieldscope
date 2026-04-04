@@ -237,7 +237,7 @@ async function scanOutdoor(activity,btn,icon,txt){
     // Always also fetch 100km to give more results
     try{
       const data2=await outdoorFetch(100,activity);
-      setStep('s2','done','✓ 100km done');setBar(66);
+      setStep('s2','done','✓ 100km done');setBar(100);
       if(data2.length>data.length){
         spots=data2;renderList(false);updateMap();
         toast('✓ '+data2.length+' spots within 100km',2000);
@@ -245,21 +245,8 @@ async function scanOutdoor(activity,btn,icon,txt){
       }
     }catch(e){setStep('s2','fail','✗ 100km failed');}
 
-    // 200km phase — fishing only (hiking capped at 100km, camping too)
-    const has200=activity==='fishing';
-    if(has200&&data.length<10){
-      try{
-        const data3=await outdoorFetch(200,activity);
-        setStep('s3','done','✓ 200km done');setBar(100);
-        if(data3.length>data.length){
-          spots=data3;renderList(false);updateMap();
-          toast('✓ '+data3.length+' spots within 200km');
-        }
-      }catch(e){setStep('s3','fail','✗ 200km failed');}
-    }else{
-      const skipMsg=has200?'Skipped — enough results':'Max 100km for '+activity;
-      setStep('s3','done',skipMsg);setBar(100);
-    }
+    // All outdoor activities capped at 100km — Overpass 200km adds 20-30s and rarely adds value
+    setStep('s3','done','Max 100km — fast scan');setBar(100);
     if(data.length<5) toast('Only '+data.length+' spots found — try a different area',3000);
 
     cache();
@@ -277,4 +264,154 @@ function showScanError(msg){
     +'<button class="retry-btn" style="padding:8px 14px;background:rgba(80,160,60,.13);border:1px solid var(--border2);border-radius:8px;color:var(--lime);font-size:12px;font-weight:700;cursor:pointer;font-family:Outfit,sans-serif">↩ Retry</button>'
     +'<button onclick="toggleLog()" style="padding:8px 14px;background:rgba(80,160,60,.07);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;font-family:Outfit,sans-serif">Log</button>'
     +'</div></div>';
+}
+
+// ═══════════════════════════════════════
+//  MIGRATION PULSE — 30-day eBird aggregation
+//  Fetched once per session, cached in pulseData.
+//  Uses existing Worker /obs endpoint with back=30.
+// ═══════════════════════════════════════
+
+// Migrant groups — used for the "arrivals" section
+var MIGRANT_GROUPS = {
+  Warblers:   ['warbler','redstart','ovenbird','waterthrush','yellowthroat'],
+  Raptors:    ['hawk','eagle','osprey','falcon','harrier','kite','merlin','kestrel'],
+  Shorebirds: ['sandpiper','plover','snipe','godwit','dowitcher','yellowlegs','dunlin'],
+  Waterfowl:  ['goose','geese','duck','teal','wigeon','merganser','scaup','eider','bufflehead','goldeneye'],
+  Sparrows:   ['sparrow','junco','towhee','bunting','longspur'],
+  Swallows:   ['swallow','martin'],
+  Thrushes:   ['thrush','robin','bluebird','veery','swainson'],
+};
+
+async function loadMigrationPulse(){
+  if(pulseLoading)return;
+
+  // Show loading state immediately
+  renderMigrationPulse(null,true);
+
+  // Use cached if fresh (< 30 min)
+  if(pulseData&&pulseData._ts&&(Date.now()-pulseData._ts)<1800000){
+    renderMigrationPulse(pulseData,false);
+    return;
+  }
+
+  pulseLoading=true;
+  log('info','Loading migration pulse — 30-day eBird fetch…');
+
+  try{
+    var params='lat='+userLat+'&lng='+userLng+'&dist=50&back=30&activity=birding';
+    var res=await fetchWithTimeout(WORKER_URL+'/obs?'+params,30000);
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    var obs=await res.json();
+    if(!Array.isArray(obs))throw new Error('Not an array');
+    log('ok','Pulse: '+obs.length+' obs over 30 days');
+    pulseData=computePulse(obs);
+    pulseData._ts=Date.now();
+    renderMigrationPulse(pulseData,false);
+  }catch(e){
+    log('err','Pulse fetch failed: '+e.message);
+    renderMigrationPulse(null,false,e.message);
+  }finally{
+    pulseLoading=false;
+  }
+}
+
+function computePulse(obs){
+  var daily={};         // date → {birds, speciesSet, checklists}
+  var speciesAll={};    // comName → {dates:[], totalCount}
+  var flocks=[];        // obs with howMany >= 500
+  var now=new Date();
+
+  obs.forEach(function(o){
+    if(!o.obsDt||!o.comName)return;
+    var date=o.obsDt.split(' ')[0];
+    var cnt=parseInt(o.howMany)||1;
+
+    // Daily aggregation
+    if(!daily[date])daily[date]={birds:0,species:new Set(),checklists:new Set()};
+    daily[date].birds+=cnt;
+    daily[date].species.add(o.comName);
+    if(o.subId)daily[date].checklists.add(o.subId);
+
+    // Species trend
+    if(!speciesAll[o.comName])speciesAll[o.comName]={total:0,days:new Set()};
+    speciesAll[o.comName].total+=cnt;
+    speciesAll[o.comName].days.add(date);
+
+    // Big flocks
+    if(parseInt(o.howMany)>=500){
+      flocks.push({
+        date:date,species:o.comName,
+        count:parseInt(o.howMany),
+        loc:o.locName||'Unknown location'
+      });
+    }
+  });
+
+  // Sort dates
+  var dates=Object.keys(daily).sort();
+
+  // Daily series
+  var dailySeries=dates.map(function(d){
+    return {
+      date:d,
+      label:d.slice(5),   // MM-DD
+      birds:daily[d].birds,
+      species:daily[d].species.size,
+      checklists:daily[d].checklists.size
+    };
+  });
+
+  // Pulse score — compare last 7 days vs prior 7-14 days
+  var recent7=dates.slice(-7);
+  var prior7=dates.slice(-14,-7);
+  var avgRecent=recent7.reduce(function(s,d){return s+daily[d].species.size;},0)/Math.max(recent7.length,1);
+  var avgPrior=prior7.reduce(function(s,d){return s+daily[d].species.size;},0)/Math.max(prior7.length,1);
+  var pulseScore=avgPrior>0?Math.round(Math.min(100,(avgRecent/avgPrior)*50)):Math.round(Math.min(100,avgRecent*2));
+
+  // Top species by total count (excluding super-common)
+  var SKIP=new Set(['American Crow','European Starling','House Sparrow','Rock Pigeon','Canada Goose']);
+  var topSpecies=Object.keys(speciesAll)
+    .filter(function(n){return !SKIP.has(n);})
+    .sort(function(a,b){return speciesAll[b].total-speciesAll[a].total;})
+    .slice(0,10)
+    .map(function(n){return {name:n,total:speciesAll[n].total,days:speciesAll[n].days.size};});
+
+  // Migrant group detection — what arrived in last 7 days?
+  var arrivals={};
+  Object.keys(MIGRANT_GROUPS).forEach(function(group){
+    var keywords=MIGRANT_GROUPS[group];
+    var groupObs=obs.filter(function(o){
+      var low=(o.comName||'').toLowerCase();
+      return keywords.some(function(k){return low.indexOf(k)!==-1;});
+    });
+    if(!groupObs.length)return;
+    // Count by date
+    var byDate={};
+    groupObs.forEach(function(o){
+      var d=o.obsDt?o.obsDt.split(' ')[0]:'';
+      if(!d)return;
+      byDate[d]=(byDate[d]||0)+(parseInt(o.howMany)||1);
+    });
+    var recentCount=recent7.reduce(function(s,d){return s+(byDate[d]||0);},0);
+    var priorCount=prior7.reduce(function(s,d){return s+(byDate[d]||0);},0);
+    if(recentCount>0){
+      arrivals[group]={recent:recentCount,prior:priorCount,
+        trend:priorCount>0?Math.round((recentCount/priorCount-1)*100):100};
+    }
+  });
+
+  // Big flocks sorted by count
+  flocks.sort(function(a,b){return b.count-a.count;});
+
+  return {
+    dailySeries:dailySeries,
+    pulseScore:pulseScore,
+    avgRecent:Math.round(avgRecent),
+    avgPrior:Math.round(avgPrior),
+    topSpecies:topSpecies,
+    flocks:flocks.slice(0,8),
+    arrivals:arrivals,
+    totalObs:obs.length,
+  };
 }

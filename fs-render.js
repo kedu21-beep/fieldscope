@@ -45,15 +45,18 @@ function setRadiusFilter(km){
 }
 
 function showTab(tab){
-  const isList=tab==='list',isMap=tab==='map',isSavedTab=tab==='saved';
+  const isList=tab==='list',isMap=tab==='map',isSavedTab=tab==='saved',isPulse=tab==='pulse';
   document.getElementById('listView').style.display=isList?'block':'none';
   document.getElementById('mapView').classList.toggle('on',isMap);
   document.getElementById('savedView').style.display=isSavedTab?'block':'none';
+  document.getElementById('pulseView').style.display=isPulse?'block':'none';
   document.getElementById('tabList').classList.toggle('on',isList);
   document.getElementById('tabMap').classList.toggle('on',isMap);
   document.getElementById('tabSaved').classList.toggle('on',isSavedTab);
-  if(isMap){initMap();setTimeout(()=>leafMap&&leafMap.invalidateSize(),55);}
+  document.getElementById('tabPulse').classList.toggle('on',isPulse);
+  if(isMap){initMap();setTimeout(function(){leafMap&&leafMap.invalidateSize();},55);}
   if(isSavedTab)renderSaved();
+  if(isPulse)loadMigrationPulse();
 }
 
 // ── MASTER renderList — routes to the right renderer ──
@@ -267,16 +270,19 @@ function renderFishingList(expanding){
     const waterLabel={river:'River',stream:'Stream',lake:'Lake',reservoir:'Reservoir',
       pond:'Pond',basin:'Basin',oxbow:'Oxbow',canal:'Canal',water:'Water'}[s.waterType]||'Water';
 
-    // Fish species pills — primary bold, secondary faint
+    // Fish species pills — primary (up to 3), rare with star, no secondary clutter
     const fishPrimary=(s.fishSpecies||[]).slice(0,3)
       .map(function(f){return '<span class="pill" style="color:var(--blue);border-color:rgba(74,158,255,.25);background:rgba(74,158,255,.07)"><i class="ti ti-fish"></i> '+f+'</span>';})
       .join('');
-    const fishSecondary=(s.fishSecondary||[]).slice(0,2)
-      .map(function(f){return '<span class="pill">'+f+'</span>';})
+    const fishRare=(s.fishRare||[]).slice(0,2)
+      .map(function(f){return '<span class="pill r"><i class="ti ti-star"></i> '+f+'</span>';})
       .join('');
     const fishSourceTag=s.fishSource==='osm'
       ?'<span class="pill" style="color:var(--accent);border-color:rgba(92,184,92,.2);font-size:9px">OSM verified</span>'
       :'<span class="pill more" style="font-size:9px">inferred</span>';
+    const fishWarningTag=s.accessWarning
+      ?'<span class="pill r" style="font-size:9px"><i class="ti ti-lock"></i> Private access</span>'
+      :'';
 
     // Access tag
     const accessTag=s.fishing==='yes'
@@ -303,7 +309,7 @@ function renderFishingList(expanding){
       // Fish species section
       +'<div style="margin-bottom:8px">'
       +'<div style="font-size:8.5px;font-weight:700;color:var(--faint);letter-spacing:.6px;text-transform:uppercase;margin-bottom:4px">Expected species</div>'
-      +'<div class="pills">'+fishPrimary+fishSecondary+fishSourceTag+'</div>'
+      +'<div class="pills">'+fishPrimary+fishRare+fishWarningTag+fishSourceTag+'</div>'
       +'</div>'
       +'<div class="actions">'
       +'<button class="act go" onclick="navTo('+s.lat+','+s.lng+')"><i class="ti ti-navigation"></i> Directions</button>'
@@ -488,4 +494,210 @@ function renderKayakingList(expanding){
     +'<div style="display:flex;justify-content:space-between;padding:2px 0 7px">'
     +'<div style="font-size:9.5px;font-weight:700;color:var(--faint);letter-spacing:.8px;text-transform:uppercase">'+filtered.length+' paddling spots</div>'
     +'<div style="font-size:9.5px;color:var(--faint)">OpenStreetMap</div></div>'+cards;
+}
+
+// ════════════════════════════════════════════
+//  MIGRATION PULSE RENDER
+// ════════════════════════════════════════════
+var _pulseChart=null; // Chart.js instance ref — destroy before recreate
+
+function renderMigrationPulse(data,loading,errMsg){
+  var el=document.getElementById('pulseView');
+  if(!el)return;
+
+  // ── Loading / error states ──
+  if(loading){
+    el.innerHTML='<div class="state">'
+      +'<i class="ti ti-chart-bar" style="font-size:42px;color:var(--accent)"></i>'
+      +'<div class="state-title">Loading Migration Pulse</div>'
+      +'<div class="state-sub">Scanning last 30 days of eBird data near you…</div>'
+      +'</div>';
+    return;
+  }
+  if(!data){
+    el.innerHTML='<div class="state">'
+      +'<i class="ti ti-alert-triangle" style="font-size:42px;color:var(--amber)"></i>'
+      +'<div class="state-title">Pulse Unavailable</div>'
+      +'<div class="state-sub">'+(errMsg||'Scan first to load migration data.')+'</div>'
+      +'<button class="retry-btn" style="margin-top:12px;padding:8px 14px;background:rgba(80,160,60,.13);border:1px solid var(--border2);border-radius:8px;color:var(--lime);font-size:12px;font-weight:700;cursor:pointer;font-family:Outfit,sans-serif">↩ Retry</button>'
+      +'</div>';
+    el.querySelector('.retry-btn').addEventListener('click',function(){pulseData=null;loadMigrationPulse();});
+    return;
+  }
+
+  // ── Pulse Score banner ──
+  var score=data.pulseScore;
+  var scoreCol=score>=70?'var(--red)':score>=45?'var(--amber)':'var(--muted)';
+  var scoreLabel=score>=70?'🔥 Migration peaking!':score>=45?'↑ Activity building':score>=25?'Moderate activity':'Quiet period';
+  var scoreBg=score>=70?'rgba(224,108,108,.1)':score>=45?'rgba(244,185,66,.07)':'rgba(255,255,255,.03)';
+
+  var pulseBanner='<div style="margin:12px 0 10px;padding:14px 16px;border-radius:14px;border:1px solid '
+    +(score>=70?'rgba(224,108,108,.3)':score>=45?'rgba(244,185,66,.25)':'var(--border)')
+    +';background:'+scoreBg+'">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+    +'<div style="font-size:9px;font-weight:700;color:var(--faint);letter-spacing:1px;text-transform:uppercase">Migration Pulse Score</div>'
+    +'<div style="font-family:Fraunces,serif;font-size:32px;font-weight:700;color:'+scoreCol+'">'+score+'</div>'
+    +'</div>'
+    +'<div style="font-size:13px;font-weight:700;color:'+scoreCol+'">'+scoreLabel+'</div>'
+    +'<div style="font-size:10.5px;color:var(--muted);margin-top:4px">'
+    +'Last 7 days avg: '+data.avgRecent+' species/day · Prior 7 days: '+data.avgPrior+' species/day'
+    +'</div>'
+    +'</div>';
+
+  // ── BirdCast link ──
+  var birdcastBtn='<a href="https://birdcast.info/migration-tools/live-migration-maps/" target="_blank" '
+    +'style="display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:10px;'
+    +'background:rgba(74,158,255,.07);border:1px solid rgba(74,158,255,.2);'
+    +'color:var(--blue);font-size:11px;font-weight:700;text-decoration:none;margin-bottom:12px">'
+    +'<i class="ti ti-radar"></i> View live radar on BirdCast.info'
+    +'<span style="margin-left:auto;font-size:10px;opacity:.7">↗</span>'
+    +'</a>';
+
+  // ── Chart canvas ──
+  var chartSection='<div style="margin-bottom:16px">'
+    +'<div style="font-size:9px;font-weight:700;color:var(--faint);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">'
+    +'30-day observation trend</div>'
+    +'<div style="position:relative;height:160px">'
+    +'<canvas id="pulseChart"></canvas>'
+    +'</div></div>';
+
+  // ── Migrant arrivals ──
+  var arrivalsHtml='';
+  var arrivalKeys=Object.keys(data.arrivals);
+  if(arrivalKeys.length){
+    arrivalsHtml='<div style="margin-bottom:16px">'
+      +'<div style="font-size:9px;font-weight:700;color:var(--faint);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Migrant groups — last 7 days</div>'
+      +'<div style="display:flex;flex-direction:column;gap:6px">';
+    arrivalKeys.forEach(function(group){
+      var a=data.arrivals[group];
+      var trendCol=a.trend>30?'var(--accent)':a.trend>0?'var(--amber)':'var(--muted)';
+      var trendArrow=a.trend>30?'▲':a.trend>0?'↑':a.trend<-20?'↓':'→';
+      arrivalsHtml+='<div style="display:flex;align-items:center;justify-content:space-between;'
+        +'padding:8px 12px;border-radius:10px;background:var(--card);border:1px solid var(--border)">'
+        +'<div style="font-size:12px;font-weight:600;color:var(--text)">'+group+'</div>'
+        +'<div style="display:flex;align-items:center;gap:8px">'
+        +'<div style="font-size:10px;color:var(--muted)">'+a.recent.toLocaleString()+' birds</div>'
+        +'<div style="font-size:12px;font-weight:700;color:'+trendCol+'">'+trendArrow
+        +(a.trend>0?' +':' ')+a.trend+'%</div>'
+        +'</div></div>';
+    });
+    arrivalsHtml+='</div></div>';
+  }
+
+  // ── Big flocks ──
+  var flocksHtml='';
+  if(data.flocks.length){
+    flocksHtml='<div style="margin-bottom:16px">'
+      +'<div style="font-size:9px;font-weight:700;color:var(--faint);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">'
+      +'Big flocks (500+)</div>'
+      +'<div style="display:flex;flex-direction:column;gap:6px">';
+    data.flocks.forEach(function(f){
+      flocksHtml+='<div style="padding:9px 12px;border-radius:10px;background:var(--card);border:1px solid var(--border)">'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">'
+        +'<div style="font-size:12px;font-weight:700;color:var(--text)">'+f.species+'</div>'
+        +'<div style="font-family:Fraunces,serif;font-size:16px;font-weight:700;color:var(--amber)">'
+        +f.count.toLocaleString()+'</div>'
+        +'</div>'
+        +'<div style="font-size:10px;color:var(--muted)">'+f.loc+' · '+f.date+'</div>'
+        +'</div>';
+    });
+    flocksHtml+='</div></div>';
+  }
+
+  // ── Top species ──
+  var topHtml='<div style="margin-bottom:16px">'
+    +'<div style="font-size:9px;font-weight:700;color:var(--faint);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">'
+    +'Most recorded species (30 days)</div>'
+    +'<div style="display:flex;flex-direction:column;gap:4px">';
+  data.topSpecies.slice(0,8).forEach(function(sp,i){
+    var barW=Math.round((sp.total/data.topSpecies[0].total)*100);
+    topHtml+='<div style="display:flex;align-items:center;gap:8px">'
+      +'<div style="font-size:10px;color:var(--muted);width:16px;text-align:right">'+(i+1)+'</div>'
+      +'<div style="flex:1">'
+      +'<div style="font-size:11px;color:var(--text);margin-bottom:2px">'+sp.name+'</div>'
+      +'<div style="height:3px;background:rgba(255,255,255,.05);border-radius:2px;overflow:hidden">'
+      +'<div style="width:'+barW+'%;height:100%;background:var(--accent);border-radius:2px"></div>'
+      +'</div></div>'
+      +'<div style="font-size:10px;color:var(--faint);white-space:nowrap">'+sp.total.toLocaleString()+' · '+sp.days+'d</div>'
+      +'</div>';
+  });
+  topHtml+='</div></div>';
+
+  el.innerHTML=pulseBanner+birdcastBtn+chartSection+arrivalsHtml+flocksHtml+topHtml;
+
+  // ── Chart.js rendering ──
+  if(_pulseChart){try{_pulseChart.destroy();}catch(_){} _pulseChart=null;}
+  var canvas=document.getElementById('pulseChart');
+  if(!canvas||!window.Chart)return;
+
+  var labels=data.dailySeries.map(function(d){return d.label;});
+  var birdCounts=data.dailySeries.map(function(d){return d.birds;});
+  var spCounts=data.dailySeries.map(function(d){return d.species;});
+
+  _pulseChart=new Chart(canvas,{
+    type:'bar',
+    data:{
+      labels:labels,
+      datasets:[
+        {
+          label:'Total birds',
+          data:birdCounts,
+          backgroundColor:'rgba(92,184,92,.35)',
+          borderColor:'rgba(92,184,92,.7)',
+          borderWidth:1,
+          yAxisID:'y',
+          order:2,
+        },
+        {
+          label:'Species diversity',
+          data:spCounts,
+          type:'line',
+          borderColor:'#f4b942',
+          backgroundColor:'rgba(244,185,66,.12)',
+          borderWidth:2,
+          pointRadius:2,
+          fill:true,
+          tension:0.3,
+          yAxisID:'y1',
+          order:1,
+        }
+      ]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{
+          labels:{color:'#7a9c7a',font:{size:10,family:'Outfit'}},
+          position:'bottom'
+        },
+        tooltip:{
+          backgroundColor:'rgba(19,32,26,.97)',
+          titleColor:'#e8f5e8',
+          bodyColor:'#7a9c7a',
+          borderColor:'rgba(92,184,92,.3)',
+          borderWidth:1,
+        }
+      },
+      scales:{
+        x:{
+          ticks:{color:'#2a3a2f',font:{size:9},maxTicksLimit:10},
+          grid:{color:'rgba(255,255,255,.04)'}
+        },
+        y:{
+          type:'linear',position:'left',
+          ticks:{color:'#5cb85c',font:{size:9}},
+          grid:{color:'rgba(255,255,255,.06)'},
+          title:{display:true,text:'Birds',color:'#5cb85c',font:{size:9}}
+        },
+        y1:{
+          type:'linear',position:'right',
+          ticks:{color:'#f4b942',font:{size:9}},
+          grid:{drawOnChartArea:false},
+          title:{display:true,text:'Species',color:'#f4b942',font:{size:9}}
+        }
+      }
+    }
+  });
 }

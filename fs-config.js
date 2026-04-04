@@ -15,6 +15,8 @@ let mapPins  = [];
 let driveFilter  = 0;
 let radiusFilter = 0;
 let rawObs = [], rawNotable = [], rawBack = 14, rawRadius = 0;
+let pulseData = null;    // cached migration pulse computation
+let pulseLoading = false; // prevent concurrent pulse fetches
 let cachedLat = null, cachedLng = null;
 let currentActivity = 'birding';
 
