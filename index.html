@@ -334,8 +334,14 @@ body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;disp
     <button id="act-birding" class="act-btn on"><i class="ti ti-feather"></i> Birding</button>
     <button id="act-hiking"  class="act-btn"><i class="ti ti-walk"></i> Hiking</button>
     <button id="act-fishing" class="act-btn"><i class="ti ti-ripple"></i> Fishing</button>
+    <button id="act-camping" class="act-btn"><i class="ti ti-tent"></i> Camping</button>
+    <button id="act-wildlife" class="act-btn"><i class="ti ti-binoculars"></i> Wildlife</button>
+    <button id="act-kayaking" class="act-btn"><i class="ti ti-kayak"></i> Kayaking</button>
   </div>
   <div class="hdr-right">
+    <button id="planTripBtn" ondblclick="showRecentTrips()" style="background:none;border:1px solid var(--border);color:var(--accent);padding:5px 10px;border-radius:8px;font-size:11px;font-weight:700;display:flex;align-items:center;gap:4px;cursor:pointer;font-family:'Outfit',sans-serif">
+      <i class="ti ti-map-search"></i> Plan Trip
+    </button>
     <div class="gps-badge" id="gpsBadge">
       <div class="gdot" id="gdot"></div>
       <span id="gTxt">GPS</span>
@@ -413,13 +419,13 @@ body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;disp
 <div class="toast" id="toast"></div>
 
 <!-- MODULAR SCRIPTS — order matters: config first, storage last -->
-<!-- v=3 busts GitHub Pages cache after activity-routing update -->
-<script src="fs-config.js?v=3"></script>
-<script src="fs-scoring.js?v=3"></script>
-<script src="fs-scan.js?v=3"></script>
-<script src="fs-render.js?v=3"></script>
-<script src="fs-map.js?v=3"></script>
-<script src="fs-storage.js?v=3"></script>
+<!-- v=5 — wildlife, kayaking, plan trip improvements, offline, cancel button -->
+<script src="fs-config.js?v=5"></script>
+<script src="fs-scoring.js?v=5"></script>
+<script src="fs-scan.js?v=5"></script>
+<script src="fs-render.js?v=5"></script>
+<script src="fs-map.js?v=5"></script>
+<script src="fs-storage.js?v=5"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -428,6 +434,15 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('act-birding').addEventListener('click', function(){ setActivity('birding'); });
   document.getElementById('act-hiking').addEventListener('click',  function(){ setActivity('hiking');  });
   document.getElementById('act-fishing').addEventListener('click', function(){ setActivity('fishing'); });
+  document.getElementById('act-camping').addEventListener('click', function(){ setActivity('camping'); });
+  document.getElementById('act-wildlife').addEventListener('click', function(){ setActivity('wildlife'); });
+  document.getElementById('act-kayaking').addEventListener('click', function(){ setActivity('kayaking'); });
+
+  // ── Plan Trip ──
+  document.getElementById('planTripBtn').addEventListener('click', planTrip);
+
+  // ── Offline detection ──
+  initOffline();
 
   // ── Scan button ──
   document.getElementById('scanBtn').addEventListener('click', scan);

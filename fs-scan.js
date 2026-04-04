@@ -82,9 +82,12 @@ function resetScanState(){
   const btn=document.getElementById('scanBtn');
   if(btn){btn.disabled=false;btn.classList.remove('scanning');}
   const icon=document.getElementById('scanIcon');
-  if(icon){icon.className='ti ti-radar';icon.style.fontSize='22px';}
+  if(icon){icon.className='ti '+(SCAN_ICON[currentActivity]||'ti-radar');icon.style.fontSize='22px';}
   const txt=document.getElementById('scanTxt');
   if(txt)txt.textContent='Scan Again';
+  // Remove cancel button
+  const cancelBtn=document.getElementById('cancelScanBtn');
+  if(cancelBtn)cancelBtn.remove();
 }
 
 function done(){
@@ -120,6 +123,22 @@ async function scan(){
   btn.disabled=true;btn.classList.add('scanning');
   icon.className='ti ti-loader spinning';icon.style.fontSize='22px';
   txt.textContent='Scanning…';
+
+  // Cancel button — appended inside scan-wrap which already has position:relative via padding context
+  var scanWrap=document.querySelector('.scan-wrap');
+  if(scanWrap){
+    var cancelBtn=document.createElement('button');
+    cancelBtn.id='cancelScanBtn';
+    cancelBtn.textContent='✕ Cancel';
+    cancelBtn.style.cssText='display:block;width:100%;margin-top:6px;padding:7px;'
+      +'background:rgba(224,108,108,.12);color:var(--red);border:1px solid rgba(224,108,108,.3);'
+      +'border-radius:9px;font-size:11px;font-weight:700;cursor:pointer;font-family:Outfit,sans-serif;';
+    cancelBtn.onclick=function(){
+      scanning=false;resetScanState();stopTimer();
+      toast('Scan cancelled',1200);
+    };
+    scanWrap.appendChild(cancelBtn);
+  }
 
   if(currentActivity==='birding'){
     await scanBirding(btn,icon,txt);
@@ -226,8 +245,9 @@ async function scanOutdoor(activity,btn,icon,txt){
       }
     }catch(e){setStep('s2','fail','✗ 100km failed');}
 
-    // 200km only if still sparse (< 10 results)
-    if(data.length<10){
+    // 200km phase — fishing only (hiking capped at 100km, camping too)
+    const has200=activity==='fishing';
+    if(has200&&data.length<10){
       try{
         const data3=await outdoorFetch(200,activity);
         setStep('s3','done','✓ 200km done');setBar(100);
@@ -237,8 +257,10 @@ async function scanOutdoor(activity,btn,icon,txt){
         }
       }catch(e){setStep('s3','fail','✗ 200km failed');}
     }else{
-      setStep('s3','done','Skipped — enough results');setBar(100);
+      const skipMsg=has200?'Skipped — enough results':'Max 100km for '+activity;
+      setStep('s3','done',skipMsg);setBar(100);
     }
+    if(data.length<5) toast('Only '+data.length+' spots found — try a different area',3000);
 
     cache();
     if(!spots.length)showScanError('No '+activity+' spots found in this area. Try a wider search.');

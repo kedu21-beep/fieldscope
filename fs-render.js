@@ -58,9 +58,72 @@ function showTab(tab){
 
 // ── MASTER renderList — routes to the right renderer ──
 function renderList(expanding){
-  if(currentActivity==='fishing') return renderFishingList(expanding);
-  if(currentActivity==='hiking')  return renderHikingList(expanding);
+  if(currentActivity==='fishing')  return renderFishingList(expanding);
+  if(currentActivity==='hiking')   return renderHikingList(expanding);
+  if(currentActivity==='camping')  return renderCampingList(expanding);
+  if(currentActivity==='wildlife') return renderWildlifeList(expanding);
+  if(currentActivity==='kayaking') return renderKayakingList(expanding);
   return renderBirdingList(expanding);
+}
+
+// ════════════════════════════════════════════
+//  CAMPING LIST
+// ════════════════════════════════════════════
+function renderCampingList(expanding){
+  const filtered=driveFilter>0?spots.filter(s=>s.driveMin<=driveFilter):spots;
+
+  if(!filtered.length){
+    document.getElementById('listView').innerHTML='<div class="state">'
+      +'<i class="ti ti-tent" style="font-size:42px;color:var(--accent)"></i>'
+      +'<div class="state-title">No camping spots found</div>'
+      +'<div class="state-sub">Try scanning or adjusting your drive filter.</div></div>';
+    return;
+  }
+
+  const expandBanner=expanding?'<div class="expanding"><i class="ti ti-loader spinning"></i> Expanding search…</div>':'';
+
+  const filterBar='<div class="df-bar">'
+    +'<button class="df-btn'+(driveFilter===0?' on':'')+'" data-df="0">All drives</button>'
+    +'<button class="df-btn'+(driveFilter===30?' on':'')+'" data-df="30">≤ 30 min</button>'
+    +'<button class="df-btn'+(driveFilter===60?' on':'')+'" data-df="60">≤ 1 hour</button>'
+    +'<button class="df-btn'+(driveFilter===120?' on':'')+'" data-df="120">≤ 2 hours</button>'
+    +'</div>';
+
+  const cards=filtered.map((s,i)=>{
+    const isTop=i===0;
+    const visited=isVisited(s.id);
+    const facilitiesTag=s.facilities&&s.facilities!=='Basic'
+      ?'<div class="mtag" style="color:var(--accent);border-color:rgba(92,184,92,.25);background:rgba(92,184,92,.07)">'+s.facilities+'</div>'
+      :'<div class="mtag">Basic</div>';
+
+    return '<div class="spot'+(visited?' visited-spot':'')+'" style="animation-delay:'+Math.min(i*28,380)+'ms">'
+      +'<div class="spot-top"><div>'
+      +'<div class="spot-rank'+(isTop?' gold':'')+'">'+(isTop?'★ #1':'#'+(i+1))+'</div>'
+      +'<div class="spot-name">'+s.name+'</div></div>'
+      +'<div class="score-block"><div class="n">'+s.score+'</div><div class="l">Score</div></div></div>'
+      +'<div class="meta">'
+      +'<div class="mtag hi"><i class="ti ti-location"></i> '+s.dist+'km</div>'
+      +'<div class="mtag hi"><i class="ti ti-car"></i> '+driveTxt(s.dist)+'</div>'
+      +(s.sites>0?'<div class="mtag"><i class="ti ti-tent"></i> '+s.sites+' sites</div>':'')
+      +facilitiesTag
+      +'</div>'
+      +'<div class="bars">'
+      +'<div class="bar"><span class="bar-l">Prox</span><div class="bar-t"><div class="bar-f p" style="width:'+(s.sP/40*100)+'%"></div></div><span class="bar-v">'+s.sP+'/40</span></div>'
+      +'<div class="bar"><span class="bar-l">Facilities</span><div class="bar-t"><div class="bar-f q" style="width:'+(s.sF/30*100)+'%"></div></div><span class="bar-v">'+s.sF+'/30</span></div>'
+      +'<div class="bar"><span class="bar-l">Land</span><div class="bar-t"><div class="bar-f" style="width:'+(s.sL/20*100)+'%;background:var(--amber)"></div></div><span class="bar-v">'+s.sL+'/20</span></div>'
+      +'</div>'
+      +'<div class="actions">'
+      +'<button class="act go" onclick="navTo('+s.lat+','+s.lng+')"><i class="ti ti-navigation"></i> Directions</button>'
+      +'<button class="act map" onclick="flyTo('+s.lat+','+s.lng+')"><i class="ti ti-map"></i> Map</button>'
+      +'<button class="visit-btn'+(visited?' visited':'')+'" data-id="'+s.id+'"><i class="'+(visited?'ti ti-circle-check-filled':'ti ti-circle-check')+'" style="font-size:18px"></i></button>'
+      +'<button class="save-btn'+(isSaved(s.id)?' saved':'')+'" data-id="'+s.id+'"><i class="ti ti-star'+(isSaved(s.id)?'-filled':'')+'" style="font-size:18px"></i></button>'
+      +'</div></div>';
+  }).join('');
+
+  document.getElementById('listView').innerHTML=expandBanner+filterBar
+    +'<div style="display:flex;justify-content:space-between;padding:2px 0 7px">'
+    +'<div style="font-size:9.5px;font-weight:700;color:var(--faint);letter-spacing:.8px;text-transform:uppercase">'+filtered.length+' camping spots</div>'
+    +'<div style="font-size:9.5px;color:var(--faint)">OpenStreetMap</div></div>'+cards;
 }
 
 // ════════════════════════════════════════════
@@ -320,5 +383,109 @@ function renderHikingList(expanding){
   document.getElementById('listView').innerHTML=expandBanner+filterBar
     +'<div style="display:flex;justify-content:space-between;padding:2px 0 7px">'
     +'<div style="font-size:9.5px;font-weight:700;color:var(--faint);letter-spacing:.8px;text-transform:uppercase">'+filtered.length+' trails</div>'
+    +'<div style="font-size:9.5px;color:var(--faint)">OpenStreetMap</div></div>'+cards;
+}
+
+// ════════════════════════════════════════════
+//  WILDLIFE LIST
+// ════════════════════════════════════════════
+function renderWildlifeList(expanding){
+  const filtered=driveFilter>0?spots.filter(s=>s.driveMin<=driveFilter):spots;
+  if(!filtered.length){
+    document.getElementById('listView').innerHTML='<div class="state">'
+      +'<i class="ti ti-binoculars" style="font-size:42px;color:var(--accent)"></i>'
+      +'<div class="state-title">No wildlife spots found</div>'
+      +'<div class="state-sub">Try scanning or adjusting your drive filter.</div></div>';
+    return;
+  }
+  const expandBanner=expanding?'<div class="expanding"><i class="ti ti-loader spinning"></i> Expanding search…</div>':'';
+  const filterBar='<div class="df-bar">'
+    +'<button class="df-btn'+(driveFilter===0?' on':'')+'" data-df="0">All drives</button>'
+    +'<button class="df-btn'+(driveFilter===30?' on':'')+'" data-df="30">≤ 30 min</button>'
+    +'<button class="df-btn'+(driveFilter===60?' on':'')+'" data-df="60">≤ 1 hour</button>'
+    +'<button class="df-btn'+(driveFilter===120?' on':'')+'" data-df="120">≤ 2 hours</button>'
+    +'</div>';
+  const cards=filtered.map((s,i)=>{
+    const isTop=i===0,visited=isVisited(s.id);
+    const protectedTag=s.isProtected
+      ?'<div class="mtag" style="color:var(--accent);border-color:rgba(92,184,92,.25);background:rgba(92,184,92,.07)"><i class="ti ti-shield"></i> Protected</div>'
+      :'';
+    const hideTag=s.hasHide
+      ?'<div class="mtag" style="color:var(--amber);border-color:rgba(244,185,66,.25);background:rgba(244,185,66,.07)"><i class="ti ti-eye"></i> Observation hide</div>'
+      :'';
+    return '<div class="spot'+(visited?' visited-spot':'')+'" style="animation-delay:'+Math.min(i*28,380)+'ms">'
+      +'<div class="spot-top"><div><div class="spot-rank'+(isTop?' gold':'')+'">'+(isTop?'★ #1':'#'+(i+1))+'</div><div class="spot-name">'+s.name+'</div></div>'
+      +'<div class="score-block"><div class="n">'+s.score+'</div><div class="l">Score</div></div></div>'
+      +'<div class="meta"><div class="mtag hi"><i class="ti ti-location"></i> '+s.dist+'km</div>'
+      +'<div class="mtag hi"><i class="ti ti-car"></i> '+driveTxt(s.dist)+'</div>'
+      +'<div class="mtag"><i class="ti ti-leaf"></i> '+s.habitatType+'</div>'
+      +protectedTag+hideTag+'</div>'
+      +'<div class="bars">'
+      +'<div class="bar"><span class="bar-l">Prox</span><div class="bar-t"><div class="bar-f p" style="width:'+(s.sP/40*100)+'%"></div></div><span class="bar-v">'+s.sP+'/40</span></div>'
+      +'<div class="bar"><span class="bar-l">Habitat</span><div class="bar-t"><div class="bar-f q" style="width:'+(s.sH/35*100)+'%"></div></div><span class="bar-v">'+s.sH+'/35</span></div>'
+      +'<div class="bar"><span class="bar-l">Protected</span><div class="bar-t"><div class="bar-f" style="width:'+(s.sPr/25*100)+'%;background:var(--amber)"></div></div><span class="bar-v">'+s.sPr+'/25</span></div>'
+      +'</div>'
+      +'<div class="actions">'
+      +'<button class="act go" onclick="navTo('+s.lat+','+s.lng+')"><i class="ti ti-navigation"></i> Directions</button>'
+      +'<button class="act map" onclick="flyTo('+s.lat+','+s.lng+')"><i class="ti ti-map"></i> Map</button>'
+      +'<button class="visit-btn'+(visited?' visited':'')+'" data-id="'+s.id+'"><i class="'+(visited?'ti ti-circle-check-filled':'ti ti-circle-check')+'" style="font-size:18px"></i></button>'
+      +'<button class="save-btn'+(isSaved(s.id)?' saved':'')+'" data-id="'+s.id+'"><i class="ti ti-star'+(isSaved(s.id)?'-filled':'')+'" style="font-size:18px"></i></button>'
+      +'</div></div>';
+  }).join('');
+  document.getElementById('listView').innerHTML=expandBanner+filterBar
+    +'<div style="display:flex;justify-content:space-between;padding:2px 0 7px">'
+    +'<div style="font-size:9.5px;font-weight:700;color:var(--faint);letter-spacing:.8px;text-transform:uppercase">'+filtered.length+' wildlife spots</div>'
+    +'<div style="font-size:9.5px;color:var(--faint)">OpenStreetMap</div></div>'+cards;
+}
+
+// ════════════════════════════════════════════
+//  KAYAKING LIST
+// ════════════════════════════════════════════
+function renderKayakingList(expanding){
+  const filtered=driveFilter>0?spots.filter(s=>s.driveMin<=driveFilter):spots;
+  if(!filtered.length){
+    document.getElementById('listView').innerHTML='<div class="state">'
+      +'<i class="ti ti-kayak" style="font-size:42px;color:var(--blue)"></i>'
+      +'<div class="state-title">No paddling spots found</div>'
+      +'<div class="state-sub">Try scanning or adjusting your drive filter.</div></div>';
+    return;
+  }
+  const expandBanner=expanding?'<div class="expanding"><i class="ti ti-loader spinning"></i> Expanding search…</div>':'';
+  const filterBar='<div class="df-bar">'
+    +'<button class="df-btn'+(driveFilter===0?' on':'')+'" data-df="0">All drives</button>'
+    +'<button class="df-btn'+(driveFilter===30?' on':'')+'" data-df="30">≤ 30 min</button>'
+    +'<button class="df-btn'+(driveFilter===60?' on':'')+'" data-df="60">≤ 1 hour</button>'
+    +'<button class="df-btn'+(driveFilter===120?' on':'')+'" data-df="120">≤ 2 hours</button>'
+    +'</div>';
+  const cards=filtered.map((s,i)=>{
+    const isTop=i===0,visited=isVisited(s.id);
+    const slipwayTag=s.hasSlipway
+      ?'<div class="mtag" style="color:var(--blue);border-color:rgba(74,158,255,.25);background:rgba(74,158,255,.07)"><i class="ti ti-anchor"></i> Slipway</div>'
+      :'';
+    const rentalTag=s.hasRental
+      ?'<div class="mtag" style="color:var(--accent);border-color:rgba(92,184,92,.25);background:rgba(92,184,92,.07)"><i class="ti ti-kayak"></i> Rental</div>'
+      :'';
+    return '<div class="spot'+(visited?' visited-spot':'')+'" style="animation-delay:'+Math.min(i*28,380)+'ms">'
+      +'<div class="spot-top"><div><div class="spot-rank'+(isTop?' gold':'')+'">'+(isTop?'★ #1':'#'+(i+1))+'</div><div class="spot-name">'+s.name+'</div></div>'
+      +'<div class="score-block"><div class="n">'+s.score+'</div><div class="l">Score</div></div></div>'
+      +'<div class="meta"><div class="mtag hi"><i class="ti ti-location"></i> '+s.dist+'km</div>'
+      +'<div class="mtag hi"><i class="ti ti-car"></i> '+driveTxt(s.dist)+'</div>'
+      +'<div class="mtag"><i class="ti ti-droplet"></i> '+s.waterType+'</div>'
+      +slipwayTag+rentalTag+'</div>'
+      +'<div class="bars">'
+      +'<div class="bar"><span class="bar-l">Prox</span><div class="bar-t"><div class="bar-f p" style="width:'+(s.sP/40*100)+'%"></div></div><span class="bar-v">'+s.sP+'/40</span></div>'
+      +'<div class="bar"><span class="bar-l">Water</span><div class="bar-t"><div class="bar-f" style="width:'+(s.sW/35*100)+'%;background:var(--blue)"></div></div><span class="bar-v">'+s.sW+'/35</span></div>'
+      +'<div class="bar"><span class="bar-l">Access</span><div class="bar-t"><div class="bar-f q" style="width:'+(s.sA/25*100)+'%"></div></div><span class="bar-v">'+s.sA+'/25</span></div>'
+      +'</div>'
+      +'<div class="actions">'
+      +'<button class="act go" onclick="navTo('+s.lat+','+s.lng+')"><i class="ti ti-navigation"></i> Directions</button>'
+      +'<button class="act map" onclick="flyTo('+s.lat+','+s.lng+')"><i class="ti ti-map"></i> Map</button>'
+      +'<button class="visit-btn'+(visited?' visited':'')+'" data-id="'+s.id+'"><i class="'+(visited?'ti ti-circle-check-filled':'ti ti-circle-check')+'" style="font-size:18px"></i></button>'
+      +'<button class="save-btn'+(isSaved(s.id)?' saved':'')+'" data-id="'+s.id+'"><i class="ti ti-star'+(isSaved(s.id)?'-filled':'')+'" style="font-size:18px"></i></button>'
+      +'</div></div>';
+  }).join('');
+  document.getElementById('listView').innerHTML=expandBanner+filterBar
+    +'<div style="display:flex;justify-content:space-between;padding:2px 0 7px">'
+    +'<div style="font-size:9.5px;font-weight:700;color:var(--faint);letter-spacing:.8px;text-transform:uppercase">'+filtered.length+' paddling spots</div>'
     +'<div style="font-size:9.5px;color:var(--faint)">OpenStreetMap</div></div>'+cards;
 }
