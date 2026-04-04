@@ -413,12 +413,13 @@ body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;disp
 <div class="toast" id="toast"></div>
 
 <!-- MODULAR SCRIPTS — order matters: config first, storage last -->
-<script src="fs-config.js"></script>
-<script src="fs-scoring.js"></script>
-<script src="fs-scan.js"></script>
-<script src="fs-render.js"></script>
-<script src="fs-map.js"></script>
-<script src="fs-storage.js"></script>
+<!-- v=3 busts GitHub Pages cache after activity-routing update -->
+<script src="fs-config.js?v=3"></script>
+<script src="fs-scoring.js?v=3"></script>
+<script src="fs-scan.js?v=3"></script>
+<script src="fs-render.js?v=3"></script>
+<script src="fs-map.js?v=3"></script>
+<script src="fs-storage.js?v=3"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -489,24 +490,17 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   // ── Cache restore ──
+  // Only restore if cached activity matches current (default: birding).
+  // Mismatched activity = stale data from a different mode, skip it.
   try {
     var c = JSON.parse(localStorage.getItem('fs_cache') || 'null');
-    if (c && Date.now() - c.ts < 3600000 && c.spots && c.spots.length) {
+    var cacheAge = c ? Date.now() - c.ts : Infinity;
+    var cacheActivity = c ? (c.activity || 'birding') : 'birding';
+    if (c && cacheAge < 3600000 && c.spots && c.spots.length && cacheActivity === currentActivity) {
       spots = c.spots;
       if (c.lat) { cachedLat = c.lat; cachedLng = c.lng; userLat = c.lat; userLng = c.lng; }
-      // Restore activity if cached
-      if (c.activity && c.activity !== currentActivity) {
-        currentActivity = c.activity;
-        document.querySelectorAll('.act-btn').forEach(function(b) {
-          b.classList.toggle('on', b.id === 'act-' + c.activity);
-        });
-        var fb = document.getElementById('formulaBar');
-        if (fb && typeof FORMULA_HTML !== 'undefined') fb.innerHTML = FORMULA_HTML[c.activity] || FORMULA_HTML.birding;
-        var icon = document.getElementById('scanIcon');
-        if (icon && typeof SCAN_ICON !== 'undefined') icon.className = 'ti ' + (SCAN_ICON[c.activity] || 'ti-radar');
-      }
       renderList(false);
-      var age = Math.round((Date.now() - c.ts) / 60000);
+      var age = Math.round(cacheAge / 60000);
       document.getElementById('scanTxt').textContent = 'Scan Again (' + age + 'min ago)';
       if (currentActivity === 'birding') {
         var topRare = spots.find(function(s) { return s.rareCnt > 0; });
